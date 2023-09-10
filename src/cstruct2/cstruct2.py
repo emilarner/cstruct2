@@ -9,6 +9,7 @@ from .cstruct2_utils import *
 
 import math
 import sys
+import struct
 
 bits = bool # denotes bitfields.
 double = float
@@ -315,7 +316,19 @@ class cstruct2:
 
         # Resolve variable width--is it absolute or dependent on another variable?
         if isinstance(absolute_width, str) and not(absolute_width == "null"):
+            tmp = absolute_width
             absolute_width = self.values[absolute_width]
+
+            # If the variable length for an int or a float is not within the capable
+            # byte lengths for C binary structures.
+            if isinstance(field, cstruct2_float_field):
+                if absolute_width not in [4, 8]:
+                    raise cstruct2_variable_length_absolutely_wrong(tmp, field.name)
+
+            if isinstance(field, cstruct2_int_field):
+                if absolute_width not in [1, 2, 4, 8]:
+                    raise cstruct2_variable_length_absolutely_wrong(tmp, field.name)
+
 
 
         # A list field represents an array type,
@@ -334,6 +347,15 @@ class cstruct2:
                 stream.read(absolute_width),
                 byteorder=field.endianness
             ))
+
+        elif isinstance(field, cstruct2_float_field):
+            data: bytes = stream.read(absolute_width)
+            endianness: str = field.endianness_str
+            float_size = "d" if absolute_width == 8 else "f"
+
+            values[field.name] = wrapper(
+                struct.unpack(f"{endianness}{float_size}", data)[0]
+            )
 
         elif isinstance(field, cstruct2_string_field):
             values[field.name] = ""
@@ -466,6 +488,12 @@ class cstruct2:
 
             stream.write(data)
 
+        elif isinstance(field, cstruct2_float_field):
+            float_size = "d" if absolute_width == 8 else "f"
+            stream.write(
+                struct.pack(f"{field.endianness_str}{float_size}", value)
+            )
+
         elif isinstance(field, cstruct2_string_field):
             self.__ws_value_checker(
                 [str],
@@ -577,6 +605,6 @@ class cstruct2:
         # Likewise, if we read 12 bits, we've definitely read a byte (8 bits) but then read an extra 4 bits,
         # which is another byte!
 
-struct = cstruct2
+structure = cstruct2
 
     

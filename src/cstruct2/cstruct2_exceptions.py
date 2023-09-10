@@ -39,6 +39,16 @@ class cstruct2_variable_length_wrong(Exception):
 
         super().__init__(msg)
 
+class cstruct2_variable_length_absolutely_wrong(Exception):
+    def __init__(self, dependent: str, offender: str):
+        msg: str = (
+            f"When trying to read the variable length for a variable int or float, named "
+            f"'{offender}', "
+            f"the length given by '{dependent}' was not 1, 2, 4, 8 (for ints) or "
+            f"4 or 8 for floats. This is catastrophic."
+        )
+
+        super().__init__(msg)
 
 class cstruct2_indeterminate_length_exception(Exception):
     """

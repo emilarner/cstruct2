@@ -21,9 +21,14 @@ class cstruct2_int_field(cstruct2_number_field):
     def __init__(self, name: str, width: int | str, endianness):
         super().__init__(name, width, "int", endianness)
 
-class cstruct2_float_field(cstruct2_number_field):
+class cstruct2_float_field:
     def __init__(self, name: str, width: int | str, endianness):
-        super(name, width, "float", endianness)
+        self.name = name
+        self.kind = "float"
+        self.width = width
+        self.endianness = endianness
+        self.wrapper = None
+        self.endianness_str: str = ">" if endianness == "big" else "<"
 
 class cstruct2_bytes_field:
     def __init__(self, name: str, width: int | str):

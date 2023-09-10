@@ -1,4 +1,4 @@
-from cstruct2.cstruct2 import cstruct2, struct
+from cstruct2.cstruct2 import cstruct2, structure
 
 @cstruct2
 class User:
@@ -10,9 +10,10 @@ class User:
 @cstruct2
 class ReadTest:
     number: int = 4
+    test_float: float = 8
     string: str = 16
     user_len: int = 4
-    users: struct = ["user_len", User]
+    users: structure = ["user_len", User]
 
 
 with open("read-test.bin", "rb") as fp:

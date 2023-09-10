@@ -12,6 +12,7 @@ struct __attribute__((__packed__)) User
 struct __attribute__((__packed__)) Data
 {
     uint32_t number;
+    double test_float;
     char string[16];
     uint32_t number_of_users;
 };
@@ -27,6 +28,7 @@ int main(void)
     };
 
     struct Data d = {0};
+    d.test_float = 3.14;
     d.number = 27;
     strncpy(d.string, "hello, world", sizeof(d.string));
     d.number_of_users = 2;
