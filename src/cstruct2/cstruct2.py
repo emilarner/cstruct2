@@ -29,16 +29,25 @@ class cstruct2:
                     f"Having a field, {name}, prefixed with an underscore _ is illegal."
                 )
 
+            if name in ["null", "pascal", "pascal16"]:
+                raise cstruct2_field_exception(
+                    "A field cannot be named 'null', 'pascal', or 'pascal16'."
+                )
+
 
         value = data
-        wrapper = None
+        wrapper = lambda x : x
         field = None
         width: int | str = None
 
         # Determine the wrapper argument when data is given as a tuple.
         if isinstance(data, tuple):
-            if len(data) >= 3:
-                wrapper = data[2]
+            if isinstance(field, cstruct2_recursive_wrapper):
+                wrapper = data[1]
+
+            else:
+                if len(data) >= 3:
+                    wrapper = data[2]
 
 
         # Sure, Python has a switch-like control flow structure now, but it wouldn't really
@@ -48,7 +57,10 @@ class cstruct2:
         # the type annotations we're forced to process. It would be faster, but at what cost?
 
         if isinstance(data, list):
-            parsed_field = self.metafield_to_field(name, datatype, data[1], True)
+            # Is the field data provided by the list in scalar or tuple format?
+            field_data = data[1] if len(data) == 2 else tuple(data[1:])
+
+            parsed_field = self.metafield_to_field(name, datatype, field_data, True)
             field = [name, data[0], parsed_field]
             width = data[0]
 
@@ -78,7 +90,7 @@ class cstruct2:
 
         elif datatype == "float":
             width = data
-            endianness = "little"
+            endianness = "little" # default endianness is always little endian
 
             if isinstance(data, tuple):
                 width = data[1]
@@ -112,6 +124,9 @@ class cstruct2:
 
             if width == "null":
                 null = True
+                self.has_derived_length = True
+
+            if width == "pascal":
                 self.has_derived_length = True
 
             field = cstruct2_string_field(
@@ -180,6 +195,7 @@ class cstruct2:
                 value
             )
 
+            field.wrapper = wrapper
         else:
             raise cstruct2_field_exception(
                 f"The field {name} has type {datatype}, which is unrecognizable as a valid cstruct2 field."
@@ -193,7 +209,7 @@ class cstruct2:
         if isinstance(width, str):
             self.has_derived_length = True
 
-            if not(datatype == "str" and width == "null"):
+            if not(datatype == "str" and width in ["pascal", "null"]):
                 if width not in self.field_names:
                     raise cstruct2_variable_length_exception(
                         name,
@@ -315,7 +331,7 @@ class cstruct2:
             self.bit_counter = 0
 
         # Resolve variable width--is it absolute or dependent on another variable?
-        if isinstance(absolute_width, str) and not(absolute_width == "null"):
+        if isinstance(absolute_width, str) and not(absolute_width in ["null", "pascal"]):
             tmp = absolute_width
             absolute_width = self.values[absolute_width]
 
@@ -338,7 +354,7 @@ class cstruct2:
             values[field[0]] = []
 
             for i in range(absolute_width):
-                value = list(self.parse_field(stream, field[2], True).values())[0]
+                value = self.parse_field(stream, field[2], True)
                 values[field[0]].append(value)
 
 
@@ -358,6 +374,7 @@ class cstruct2:
             )
 
         elif isinstance(field, cstruct2_string_field):
+            print(field.name)
             values[field.name] = ""
 
             # Null-terminated string has indeterminate length
@@ -366,16 +383,23 @@ class cstruct2:
                     values[field.name] += wrapper(c.decode())
 
             else:
+                # Pascal-style strings have a leading byte that describes their length.
+                if absolute_width == "pascal":
+                    absolute_width = int.from_bytes(stream.read(1))
+
                 # Buffering reads from a stream is more efficient...
                 # at least in C it is...
                 whole: int = absolute_width // self.__buffer_size
                 frac: int = absolute_width % self.__buffer_size
 
                 for i in range(whole):
-                    values[field.name] += wrapper(stream.read(self.__buffer_size).decode())
+                    values[field.name] += wrapper(stream.read(self.__buffer_size).decode(field.encoding))
 
                 if frac:
-                    values[field.name] += wrapper(stream.read(frac).decode())
+                    values[field.name] += wrapper(stream.read(frac).decode(field.encoding))
+
+        elif isinstance(field, cstruct2_bytes_field):
+            values[field.name] = wrapper(stream.read(absolute_width))
 
         elif isinstance(field, cstruct2_bits_field):
             # If we've read 8 consecutive bits already, we need to read another byte.
@@ -401,15 +425,19 @@ class cstruct2:
 
             # The field name itself of the switch field will be used to store
             # the resulting value of whatever field corresponds to the dependent value
-            values[field.name] = self.parse_field(stream, resulting_field)[field.name]
+        
+            values[field.name] = self.parse_field(stream, resulting_field, True)
 
         elif isinstance(field, cstruct2_recursive_wrapper):
             # Recursively parse the other structure.
             tmp = field.another.from_stream(stream)
-            values[field.name] = tmp
+            values[field.name] = field.wrapper(tmp)
 
         else:
             ... # ???
+
+        if recursive:
+            return list(values.values())[0]
 
         return values
 
@@ -476,7 +504,7 @@ class cstruct2:
             self.__ws_value_checker([dict], value)
             field.another.to_stream(value, stream)
 
-        elif isinstance(field, cstruct2_int_field):
+        elif isinstance(field, cstruct2_number_field):
             self.__ws_value_checker(
                 [int],
                 value
@@ -526,7 +554,8 @@ class cstruct2:
             stream.write(value)
 
             # Apply padding if necessary.
-            stream.write(b'\x00' * absolute_width - len(value))
+            if (absolute_width - len(value)) > 0:
+                stream.write(b'\x00' * absolute_width - len(value))
 
         elif isinstance(field, cstruct2_bits_field):
             self.__ws_value_checker(
@@ -559,6 +588,7 @@ class cstruct2:
         try:
             # For each key in the values provided, find out what fields they're supposed to be
             # so we can write the correct value to the stream.
+
             for key, value in values.items():
                 if key not in self.field_names:
                     raise cstruct2_non_existent_field_exception(key)

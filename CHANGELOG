@@ -1,0 +1,5 @@
+09/17/2023:
+    - Added support for Pascal-style strings, mainly for the example SOCKS5 proxy server program.
+    - Added support for SocketWrapper, which allows cstruct2 to interface with sockets as if they were file streams.
+    - Added a test SOCKS5 server implementation, using solely cstruct2 for parsing.
+    - Added a CHANGELOG, which will be used for all future changes to cstruct2.
