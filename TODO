@@ -1,1 +1,2 @@
 - Add proper bitfields support, specifically for writing bitfields.
+- Add reading/write support for pascal16 and pascal32 strings.

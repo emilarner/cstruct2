@@ -1,6 +1,6 @@
-# cstruct2
-Parse and serialize C-style packed binary structures easily in Python.
+# *cstruct2*
 
+Version: 1.0.0
 
 *cstruct2* is a Python library that hopes to simplify and ease the experience of working with C-style packed binary structures. That is, if you were to directly write the memory of a packed (not padded, there's a difference!) structure in C to a file, this library would be able to hasslelessly read them. There exists a myriad of other means to do this in Python, such as reading each byte by hand or using Python's native *struct* library, but these are clunky and hard to read solutions. *cstruct2* provides a metaprogramming interface, wherein you define a class decorated by *cstruct2* that defines each field to be read, in an intelligent way.
 
@@ -38,8 +38,9 @@ Because we are dabbling in the wonders of Python metaprogramming, we've kind of 
  - *str* - Any kind of string, could be encoded in a myriad of different ways.
  - *int* - Any kind of integer, which can be encoded in either Little or Big Endian, with differing widths.
  - *float* - Any kind of floating point number, with widths 4 or 8 bytes and differing endianness.
- - *bits* - Any arbitrary number of bits to be read in, in the style of C structures, where a new byte is read in whenever a new bitfield has appeared or 8 consecutive bits have been read.
+ - *bits* - Any arbitrary number of bits to be read in, in the style of C structures, where a new byte is read in whenever a new bitfield has appeared or 8 consecutive bits have been read. **This is currently not fully operational, so don't rely on it.**
  - *bytes* - An arbitrary number of bytes, where a Python *bytes* objects will be returned to store the bytes.
+ - (Future) (For writing only) *anyfield*: allows any type to be written to a stream with the structure, with the field being provided at runtime. When declaring this in the structure, it must be initialized to *None*. *cstruct2* will throw an exception if this field is in a structure that is reading from a stream. When writing the structure to a stream, this field's value in the data dictionary must be a tuple of *(field tuple, value)*. 
 
 Already, if you've been paying attention, we've encountered a problem. With all of the variations described above, how can we tell *cstruct2* about all of them, with one value in the object field declaration? If we want to get more specific about our field, we will have to make its value a tuple, a tuple of more specific information in addition to the field's width. For example, if we want to read in an integer worth 2 bytes but encoded as Big Endian, we'd have to declare:
 
@@ -52,12 +53,15 @@ Now the question is, what are the available options for settings in tuples, and 
  - *str*: (*length*, *encoding*, *wrapper*)
 	 - The *encoding* field may be any string encoding value that Python uses when decoding strings (e.g., "utf-8" or "ascii"). 
 	 - If *length* is "null"--and this is really important--then a null-terminated string will be read in. That is, *cstruct2* will keep reading bytes until it gets a '\0' byte.
+	 - If *length* is "pascal", then the string's length will be determined by the first byte that precedes it, as in a Pascal-style string.
+	 - (Future): If *length* is "pascal16" or "pascal32", then the same as regular "pascal" above, but with 16 bit and 32 bit lengths.
  - *int*: (*endianness*, *length*, *wrapper*)
 	 - *endianness* can be explicitly declared by using "big" or "little", but "host" and "network" are both options, which are relative endianness options.
- - *float*: (*endianness*, *length*, *wrapper)
+ - *float*: (*endianness*, *length*, *wrapper*)
 	 - *endianness* has the same string enumerations as above.
  - *bytes*: (*length*, *wrapper*)
  - *bits*: (*length*, *wrapper*)
+ - (Future) (For writing only) *anyfield*: *Structure value required to be None*
 
 You may have noticed a *wrapper* field at the end of every tuple, along with how it was left unexplained in each bullet-point. The *wrapper* field allows you to pass in an object or a function that will receive the read in field and will convert it to another object or datatype afterwards, when it finally puts it into the resulting dictionary, if in structure reading mode. For example, if we want to read in a *str* but then want to cast it to our custom *User* class:
 
@@ -111,6 +115,7 @@ The resulting dictionary may look something like this:
 	    ]
     }
 
+If one wants to wrap the resulting array into something, then the last argument of the list describing the array should be a callable type which then returns the wrapper, in the same way any other field can be wrapped.
 
 ## Switch Fields
 
@@ -121,7 +126,7 @@ A switch field is made by declaring a field to be that of a *switch* type, then 
  - *dependent_value*: str, the previously read field we base our decisions on
  - *decisions*: dict, a map of what each value as read from *dependent_value* should be as a another *cstruct2* field.
 
-Due to the nature of the declared switch statement, the field type cannot be given as a type annotation. Instead, it must be given as the first argument of a tuple describing each possible field in a decision mapping.
+Due to the nature of the declared switch statement, the field type cannot be given as a type annotation. Instead, it must be given as the first argument of a tuple describing each possible field in a decision mapping. Of course, the last argument of the tuple for each decision field would describe a wrapper.
 
 Of course, with things like these, it's best to explain additionally with just an example:
 
@@ -140,7 +145,7 @@ The structure is saying: if *usr_type* is equal to 0, then read in a Little Endi
 
 ## Nested *cstruct2* structures
 
-As with C structures, we can have nested *cstruct2* structures, where the result will be placed in a subobject in the main dictionary that parsing would yield. The field's type annotation for a nested *cstruct2* structure must be that of *struct*. An example only will be provided, because it's crystal clear how it works:
+As with C structures, we can have nested *cstruct2* structures, where the result will be placed in a subobject in the main dictionary that parsing would yield. The field's type annotation for a nested *cstruct2* structure must be that of *structure*, with the value equal to the *cstruct2* object representing that nested structure--and if you use a tuple, the last argument of that tuple would be some wrapper which would be fed the corresponding read dictionary of the nested structure. An example only will be provided, because it's crystal clear how it works:
 
     @cstruct2
     class UserStructure:
@@ -152,7 +157,7 @@ As with C structures, we can have nested *cstruct2* structures, where the result
     class MainStructure:
 	    code: int = 1
 	    users_len: int = 2
-	    users: struct = [
+	    users: structure = [
 		    "users_len",
 		    UserStructure
 	    ]
@@ -213,9 +218,62 @@ It's breathtaking, if you've ever toiled away parsing packed binary structures m
 
 The manual Python version, if you're not using *struct*, is not much better (and in fact, can be longer!). 
 
-		    
-	
+## Writing Structures
 
-  
+It's natural to also want to write these structures back to a stream or to some other output, so naturally *cstruct2* supports it. Writing structures isn't scattered throughout the previous sections because it does not differ much from regular *cstruct2* structure reading mode. There are some minute differences, but they are minute enough to be all under one inclusive section.
 
+A *cstruct2* parsed structure will have the *to_stream()* and *to_bytes()* methods that will write the structure to either a stream or will write it to bytes which will be returned. In both of those methods, a dictionary containing the values for each defined field must be passed as the first argument. Obviously, *to_stream()* then needs the stream as its second argument. Let's give an example:
 
+    @cstruct2
+    class MyStructure:
+    	age: int = ("little", 4)
+    	name: str = "null"
+    	things: int = [3, "little", 2]
+    
+    with open("out.bin", "wb") as fp:
+    	MyStructure.to_stream({
+			"age": 32,
+			"name": "Test Person",
+			"things": [2, 3, 5]
+        }, fp)
+
+This will write the values to the corresponding fields to the stream provided, which points to a file. Because of how the structure was defined, *age* will be written as a 4 byte integer in Little Endian order to the stream. Similarly, *name* will be written as a null terminated string to the stream... you get the picture now.
+
+## Auxiliary Components
+
+*cstruct2* provides some wrapper classes and helper functions in its library, most notably *cstruct2.cstruct2.SocketWrapper*. If you want to read or write a structure from/to a socket, you will need to construct a *SocketWrapper* on that socket first, before utilizing it with *cstruct2*. For example, if I open a socket as a client, and I wish to utilize it with *cstruct2*:
+
+    from cstruct2.cstruct2 import cstruct2
+    from cstruct2.cstruct2_utils import SocketWrapper
+    
+    @cstruct2
+    class Handshake:
+    	id: int = ("little", 4)
+    	username: str = "pascal"
+    	password: str = "pascal"
+    
+    @cstruct2
+    class Response:
+    	last_login: int = ("little", 8)
+    	messages_len: int = ("little", 2)
+    	messages: str = ["messages_len", "null"]
+    
+    sock = socket.socket()
+    sock.connect(("192.168.0.3", 8080))
+    sock_wrapper = SocketWrapper(sock)
+    
+    Handshake.to_stream({
+    	"id": 321,
+    	"username": "admin",
+    	"password": "123"
+    }, sock_wrapper)
+    
+    response: dict = Response.from_stream(sock_wrapper)
+    for msg in response["messages"]:
+    	print(msg)
+    
+    sock.close()
+
+## Miscellaneous
+
+A list of changes to this library can be seen through the CHANGELOG	file in this repository. A list of things that need to get done can be seen through the TODO file that is also in this repository. The source code to this library is quite messy and inefficient at the moment as well, as a heads up. If you have any questions, complaints, or suggestions, feel free to make issues on this repository or email me at arner@usa.com.

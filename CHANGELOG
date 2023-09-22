@@ -1,3 +1,6 @@
+09/19/2023:
+    - Added writing support for Pascal-style (one byte) strings.
+
 09/17/2023:
     - Added support for Pascal-style strings, mainly for the example SOCKS5 proxy server program.
     - Added support for SocketWrapper, which allows cstruct2 to interface with sockets as if they were file streams.

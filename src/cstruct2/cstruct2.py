@@ -529,18 +529,23 @@ class cstruct2:
             )
 
             data: bytes = value.encode()
+            if field.width == "pascal":
+                stream.write(int.to_bytes(len(data), "little"))
+
             stream.write(data)
 
             # Null terminated string.
             if field.width == "null":
                 data += b'\0'
-            
-            else:
-                if len(data) > absolute_width:
-                    raise cstruct2_too_big_exception(field.name, absolute_width, len(data))
 
-                padding: int = absolute_width - len(data)
-                stream.write(b'\x00' * padding)
+
+            else:
+                if field.width not in ["pascal", "pascal16", "pascal32"]:
+                    if len(data) > absolute_width:
+                        raise cstruct2_too_big_exception(field.name, absolute_width, len(data))
+
+                    padding: int = absolute_width - len(data)
+                    stream.write(b'\x00' * padding)
 
         elif isinstance(field, cstruct2_bytes_field):
             self.__ws_value_checker(
