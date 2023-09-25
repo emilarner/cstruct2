@@ -1,6 +1,6 @@
 # *cstruct2*
 
-Version: 1.0.0
+Version: 1.0.1 (Beta)
 
 *cstruct2* is a Python library that hopes to simplify and ease the experience of working with C-style packed binary structures. That is, if you were to directly write the memory of a packed (not padded, there's a difference!) structure in C to a file, this library would be able to hasslelessly read them. There exists a myriad of other means to do this in Python, such as reading each byte by hand or using Python's native *struct* library, but these are clunky and hard to read solutions. *cstruct2* provides a metaprogramming interface, wherein you define a class decorated by *cstruct2* that defines each field to be read, in an intelligent way.
 
@@ -10,7 +10,7 @@ The reading of fields of a certain type and explicit width is a given, but *cstr
 
 Each field is a member of a decorated class, where the type of the data item is given as a type annotation and the value of that data item is its size, in most cases. For example, if we wanted to define an object *MyStructure* which has an integer 4 bytes in length--*cstruct2* assumes Little Endian ordered integers--and an ASCII string 32 bytes in length:
 
-    from cstruct2 import cstruct2
+    from cstruct2.cstruct2 import cstruct2
         
     @cstruct2
     class MyStructure:
@@ -130,6 +130,8 @@ Due to the nature of the declared switch statement, the field type cannot be giv
 
 Of course, with things like these, it's best to explain additionally with just an example:
 
+    from cstruct2.cstruct2 import cstruct2, switch
+    
     @cstruct2
     class MyStructure:
 	    usr_type: int = 1
@@ -147,6 +149,8 @@ The structure is saying: if *usr_type* is equal to 0, then read in a Little Endi
 
 As with C structures, we can have nested *cstruct2* structures, where the result will be placed in a subobject in the main dictionary that parsing would yield. The field's type annotation for a nested *cstruct2* structure must be that of *structure*, with the value equal to the *cstruct2* object representing that nested structure--and if you use a tuple, the last argument of that tuple would be some wrapper which would be fed the corresponding read dictionary of the nested structure. An example only will be provided, because it's crystal clear how it works:
 
+    from cstruct2.cstruct2 import cstruct2, structure
+    
     @cstruct2
     class UserStructure:
 	    id: int = 4
@@ -274,6 +278,14 @@ This will write the values to the corresponding fields to the stream provided, w
     
     sock.close()
 
+A variety of examples are provided in this repository, such as an example SOCKS5 proxy server created with *cstruct2* and a C program that writes packed binary structures to a file, which *cstruct2* will then read and parse.
+
 ## Miscellaneous
 
 A list of changes to this library can be seen through the CHANGELOG	file in this repository. A list of things that need to get done can be seen through the TODO file that is also in this repository. The source code to this library is quite messy and inefficient at the moment as well, as a heads up. If you have any questions, complaints, or suggestions, feel free to make issues on this repository or email me at arner@usa.com.
+
+	
+
+  
+
+
