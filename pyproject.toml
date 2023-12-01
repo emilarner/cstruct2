@@ -1,6 +1,6 @@
 [project]
 name = "cstruct2"
-version = "0.0.1"
+version = "1.0.1b"
 authors = [
   { name = "Emil Arner", email = "arner@usa.com" },
 ]

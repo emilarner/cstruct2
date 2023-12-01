@@ -11,7 +11,6 @@ import math
 import sys
 import struct
 
-bits = bool # denotes bitfields.
 double = float
 
 class cstruct2:
@@ -151,20 +150,6 @@ class cstruct2:
 
             field.wrapper = wrapper
 
-        # bit fields
-        elif datatype == "bool":
-            width = data
-            if isinstance(width, tuple):
-                width = data[0]
-                wrapper = data[1]
-
-            field = cstruct2_bits_field(
-                name,
-                width
-            )
-
-            field.wrapper = wrapper
-            self.bit_fields += width
 
         elif datatype == "switch_type":
             switch_obj: switch_type = data
@@ -374,7 +359,6 @@ class cstruct2:
             )
 
         elif isinstance(field, cstruct2_string_field):
-            print(field.name)
             values[field.name] = ""
 
             # Null-terminated string has indeterminate length
@@ -401,23 +385,6 @@ class cstruct2:
         elif isinstance(field, cstruct2_bytes_field):
             values[field.name] = wrapper(stream.read(absolute_width))
 
-        elif isinstance(field, cstruct2_bits_field):
-            # If we've read 8 consecutive bits already, we need to read another byte.
-            # So reset the bit counter, causing us to read another byte
-            if self.bit_counter == 8:
-                self.bit_counter = 0
-
-            if self.bit_counter == 0:
-                self.bit_cache = stream.read(1)
-
-            values[field.name] = 0
-            for i in range(field.width):
-                mask = (1 << field.width - i - 1)
-                if int.from_bytes(self.bit_cache) & (1 << (7 - self.bit_counter - i)):
-                    values[field.name] |= mask
-            
-            # We must keep track of the number of bits processed thus far.
-            self.bit_counter += field.width
 
         elif isinstance(field, switch_type):
             dependent_value = self.values[field.dependent]
@@ -562,19 +529,6 @@ class cstruct2:
             if (absolute_width - len(value)) > 0:
                 stream.write(b'\x00' * absolute_width - len(value))
 
-        elif isinstance(field, cstruct2_bits_field):
-            self.__ws_value_checker(
-                [bytes, int, float],
-                given
-            )
-
-            if value > (pow(2, field.width) - 1):
-                sys.stderr.write((
-                    f"cstruct2 WARNING!: value of {value} does not fit in "
-                    f"bit width of {field.width}. Truncating bits..."
-                ))
-
-            bits: int = 0
 
         elif isinstance(field, switch_type):
             actual_field = field.decisions[values[field.dependent]]
