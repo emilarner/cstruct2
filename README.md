@@ -1,6 +1,6 @@
 # *cstruct2*
 
-Version: 1.0.1 (Beta)
+Version: 1.0.2 (Beta)
 
 *cstruct2* is a Python library that hopes to simplify and ease the experience of working with C-style packed binary structures. That is, if you were to directly write the memory of a packed (not padded, there's a difference!) structure in C to a file, this library would be able to hasslelessly read them. There exists a myriad of other means to do this in Python, such as reading each byte by hand or using Python's native *struct* library, but these are clunky and hard to read solutions. *cstruct2* provides a metaprogramming interface, wherein you define a class decorated by *cstruct2* that defines each field to be read, in an intelligent way.
 
@@ -38,7 +38,6 @@ Because we are dabbling in the wonders of Python metaprogramming, we've kind of 
  - *str* - Any kind of string, could be encoded in a myriad of different ways.
  - *int* - Any kind of integer, which can be encoded in either Little or Big Endian, with differing widths.
  - *float* - Any kind of floating point number, with widths 4 or 8 bytes and differing endianness.
- - *bits* - Any arbitrary number of bits to be read in, in the style of C structures, where a new byte is read in whenever a new bitfield has appeared or 8 consecutive bits have been read. **This is currently not fully operational, so don't rely on it.**
  - *bytes* - An arbitrary number of bytes, where a Python *bytes* objects will be returned to store the bytes.
  - (Future) (For writing only) *anyfield*: allows any type to be written to a stream with the structure, with the field being provided at runtime. When declaring this in the structure, it must be initialized to *None*. *cstruct2* will throw an exception if this field is in a structure that is reading from a stream. When writing the structure to a stream, this field's value in the data dictionary must be a tuple of *(field tuple, value)*. 
 
@@ -60,7 +59,6 @@ Now the question is, what are the available options for settings in tuples, and 
  - *float*: (*endianness*, *length*, *wrapper*)
 	 - *endianness* has the same string enumerations as above.
  - *bytes*: (*length*, *wrapper*)
- - *bits*: (*length*, *wrapper*)
  - (Future) (For writing only) *anyfield*: *Structure value required to be None*
 
 You may have noticed a *wrapper* field at the end of every tuple, along with how it was left unexplained in each bullet-point. The *wrapper* field allows you to pass in an object or a function that will receive the read in field and will convert it to another object or datatype afterwards, when it finally puts it into the resulting dictionary, if in structure reading mode. For example, if we want to read in a *str* but then want to cast it to our custom *User* class:
