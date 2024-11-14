@@ -1,13 +1,14 @@
-from cstruct2.cstruct2 import cstruct2, structure
+from cstruct2.decorator import Structure, structure
 
-@cstruct2
+
+@Structure
 class User:
     id: int = 1
     username_len: int = 2
     username: str = "username_len"
 
 
-@cstruct2
+@Structure
 class ReadTest:
     number: int = 4
     test_float: float = 8

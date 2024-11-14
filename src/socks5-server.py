@@ -4,43 +4,51 @@ import sys
 import threading
 
 from enum import IntEnum
-from cstruct2.cstruct2 import cstruct2, switch, structure
+from cstruct2.decorator import Structure, switch, structure
 from cstruct2.cstruct2_utils import SocketWrapper
 
-@cstruct2
+
+@Structure
 class ClientHandshake:
     version: int = 1
     methods_length: int = 1
     methods: int = ["methods_length", 1]
 
+
 class AuthenticationMethods(IntEnum):
     NoAuthentication = 0
     UsernamePassword = 2
 
-@cstruct2
+
+@Structure
 class ServerHandshakeResponse:
     version: int = 1
     method: int = 1
+
 
 class AddressTypes(IntEnum):
     IPv4 = 1
     Domain = 3
     IPv6 = 4
 
-@cstruct2
+
+@Structure
 class ClientRequest:
     version: int = 1
     command: int = 1
     reserved: int = 1
     address_type: int = 1
-    address: switch = switch("address_type", {
-        AddressTypes.IPv4: (bytes, 4, socket.inet_ntoa),
-        AddressTypes.Domain: (str, "pascal", "ascii", socket.gethostbyname)
-    })
+    address: switch = switch(
+        "address_type",
+        {
+            AddressTypes.IPv4: (bytes, 4, socket.inet_ntoa),
+            AddressTypes.Domain: (str, "pascal", "ascii", socket.gethostbyname),
+        },
+    )
     port: int = ("big", 2)
 
 
-@cstruct2
+@Structure
 class ServerResponse:
     version: int = 1
     reply: int = 1
@@ -49,27 +57,32 @@ class ServerResponse:
     address: bytes = 4
     port: int = ("big", 2)
 
+
 def handler(client: socket.socket):
     sclient: SocketWrapper = SocketWrapper(client, rw_all=True)
     handshake: dict = ClientHandshake.from_stream(sclient)
 
-    ServerHandshakeResponse.to_stream({
-        "version": 5,
-        "method": AuthenticationMethods.NoAuthentication
-    }, sclient)
+    ServerHandshakeResponse.to_stream(
+        {"version": 5, "method": AuthenticationMethods.NoAuthentication}, sclient
+    )
 
     request: dict = ClientRequest.from_stream(sclient)
-    
-    ServerResponse.to_stream({
-        "version": 5,
-        "reply": 0,
-        "reserved": 0,
-        "address_type": AddressTypes.IPv4,
-        "address": socket.inet_aton(request["address"]),
-        "port": 443
-    }, sclient)
 
-    other_sock: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
+    ServerResponse.to_stream(
+        {
+            "version": 5,
+            "reply": 0,
+            "reserved": 0,
+            "address_type": AddressTypes.IPv4,
+            "address": socket.inet_aton(request["address"]),
+            "port": 443,
+        },
+        sclient,
+    )
+
+    other_sock: socket.socket = socket.socket(
+        socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP
+    )
     other_sock.connect((request["address"], request["port"]))
 
     while True:
@@ -95,17 +108,11 @@ def handler(client: socket.socket):
                     except socket.error as e:
                         if e.errno == socket.EWOULDBLOCK:
                             continue
-                        
+
                         raise e
         except Exception as err:
             print(str(err))
             return
-
-
-
-
-
-
 
 
 def main():
@@ -128,9 +135,6 @@ def main():
         print(f"Connection received from: {address[0]}:{address[1]}")
         thr = threading.Thread(target=handler, args=(client,))
         thr.start()
-
-
-
 
 
 if __name__ == "__main__":

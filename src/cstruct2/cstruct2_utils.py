@@ -2,6 +2,7 @@ import socket
 
 host_endianness = "little"
 
+
 def relative_endianness_resolver(endianness: str) -> str:
     """Resolve endian values, especially relative ones. This function is platform specific."""
 
@@ -15,13 +16,13 @@ def relative_endianness_resolver(endianness: str) -> str:
     elif endianness == "network":
         endianness = "big"
 
-    
     return endianness
+
 
 class SocketWrapper:
     """This exposes the write and read methods for a socket. This must be used for utilization of sockets for cstruct2."""
 
-    def __init__(self, sock: socket.socket, rw_all = True):
+    def __init__(self, sock: socket.socket, rw_all=True):
         self.sock = sock
         self.rw_all = rw_all
 
