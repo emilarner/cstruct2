@@ -157,7 +157,7 @@ class Structure:
             self.has_derived_length = True
             field = new_switch_obj
 
-        elif datatype == "cstruct2":
+        elif datatype == "Structure":
             field = cstruct2_recursive_wrapper(name, value)
 
             field.wrapper = wrapper
@@ -167,7 +167,7 @@ class Structure:
             )
 
         if not isinstance(width, str) and not isinstance(width, int):
-            if datatype != "cstruct2" and datatype != "switch_type":
+            if datatype != "Structure" and datatype != "switch_type":
                 raise AttributeError(
                     f"The width, {width}, on field {name}, is not int or str."
                 )
