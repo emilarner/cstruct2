@@ -1,7 +1,7 @@
-from cstruct2.cstruct2 import cstruct2, struct
+from cstruct2.decorator import Structure, struct
 
 
-@cstruct2
+@Structure
 class DataStructure:
     name: str = 16
     age: int = 4
@@ -9,12 +9,6 @@ class DataStructure:
 
 
 with open("write_test.bin", "wb") as fp:
-    DataStructure.to_stream({
-        "name": "hey",
-        "age": 82,
-        "values": [
-            "hey",
-            "whatever",
-            "new"
-        ]
-    }, fp)
+    DataStructure.to_stream(
+        {"name": "hey", "age": 82, "values": ["hey", "whatever", "new"]}, fp
+    )
